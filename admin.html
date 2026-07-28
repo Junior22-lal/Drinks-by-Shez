@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pedidos — Drinks by Shez</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;1,600&family=Work+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#15100e; --card:#201812; --card2:#241a13; --line: rgba(244,236,223,0.13); --gold:#d4a24c; --cream:#f4ecdf; --clay:#c1522d; --clay-dark:#8f3a1f; --moss:#5c6b47; }
+  *{box-sizing:border-box;}
+  body{ margin:0; min-height:100vh; background:var(--ink); color:var(--cream); font-family:'Work Sans', sans-serif; padding:16px; }
+  h1,h3{ font-family:'Fraunces', serif; }
+
+  #pinScreen{ min-height:80vh; display:flex; align-items:center; justify-content:center; }
+  .box{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:34px 28px; width:100%; max-width:320px; text-align:center; }
+  .box h1{ font-size:20px; margin:0 0 4px; color:var(--gold); font-style:italic; }
+  .box p.sub{ font-size:13px; opacity:.6; margin:0 0 24px; }
+  input{ width:100%; padding:14px; margin-bottom:12px; border-radius:10px; border:1px solid var(--line); background:var(--ink); color:var(--cream); font-size:20px; text-align:center; letter-spacing:.3em; }
+  input:focus{ outline:none; border-color:var(--gold); }
+  button{ font-family:inherit; cursor:pointer; }
+  .btn-main{ width:100%; padding:12px; border:none; border-radius:10px; background:var(--clay); color:var(--cream); font-weight:700; font-size:14px; margin-top:6px; }
+  .btn-main:hover{ background:var(--clay-dark); }
+  .err{ color:#e08a7f; font-size:13px; margin-bottom:10px; min-height:16px; }
+
+  #panelScreen{ display:none; max-width:1100px; margin:0 auto; }
+  header{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:20px; padding-bottom:14px; border-bottom:1px solid var(--line); }
+  header h1{ font-size:19px; margin:0; color:var(--gold); font-style:italic; }
+  .btn{ padding:9px 16px; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--cream); font-size:13px; cursor:pointer; font-weight:600; }
+  .btn:hover{ border-color:var(--gold); }
+  .btn-logout{ border-color:rgba(224,138,127,.4); color:#e08a7f; }
+  .empty{ text-align:center; opacity:.6; padding:60px 10px; font-size:14px; }
+  .grid{ display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(300px,1fr)); }
+  .pedido{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .pedido.atendido{ opacity:.55; }
+  .pedido-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; gap:8px;}
+  .pedido-fecha{ font-size:12px; opacity:.75; }
+  .pedido-total{ font-size:20px; font-weight:700; color:var(--gold); font-family:'Fraunces',serif; }
+  .pedido-pago{ display:inline-block; font-size:11px; padding:3px 10px; border-radius:999px; border:1px solid var(--line); margin-bottom:10px; }
+  .pedido-items{ font-size:13.5px; line-height:1.7; margin:0 0 12px; padding-left:0; list-style:none; }
+  .pedido-items li{ border-bottom:1px dashed var(--line); padding:4px 0; }
+  .pedido-footer{ display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+  .estado{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; font-weight:700; }
+  .estado.nuevo{ color:var(--clay); }
+  .estado.atendido{ color:var(--moss); }
+  .btn-mini{ padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:transparent; color:var(--cream); font-size:11.5px; }
+  .btn-mini:hover{ border-color:var(--gold); }
+  .btn-mini.danger{ border-color:rgba(224,138,127,.4); color:#e08a7f; }
+  .setup-warning{ background:var(--card2); border:1px solid rgba(212,162,76,0.4); border-radius:12px; padding:16px 18px; font-size:13px; line-height:1.6; margin-bottom:20px; text-align:left; }
+  .setup-warning code{ background:rgba(0,0,0,.3); padding:1px 6px; border-radius:4px; }
+</style>
+</head>
+<body>
+
+  <div id="pinScreen">
+    <div class="box">
+      <h1>drinks by Shez</h1>
+      <p class="sub">Panel de pedidos</p>
+      <div class="err" id="pinErr"></div>
+      <input type="password" inputmode="numeric" maxlength="4" id="pinInput" placeholder="••••" autofocus>
+      <button class="btn-main" id="pinBtn">Entrar</button>
+    </div>
+  </div>
+
+  <div id="panelScreen">
+    <header>
+      <h1>drinks by Shez — Pedidos</h1>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" id="refreshBtn">↻ Actualizar</button>
+        <button class="btn btn-logout" id="logoutBtn">Salir</button>
+      </div>
+    </header>
+    <div id="pedidosGrid" class="grid"></div>
+    <div id="emptyMsg" class="empty" style="display:none;">Todavía no hay pedidos registrados.</div>
+  </div>
+
+<script>
+  // ======================================================
+  // Pega aquí el MISMO Bin ID y Master Key que pusiste en
+  // index.html, y cambia el PIN por el que tú quieras usar
+  // para entrar al panel.
+  // ======================================================
+  const JSONBIN_BIN_ID = "6a62a963f5f4af5e29b8da97";
+  const JSONBIN_API_KEY = "$2a$10$qv/9bm4W4XffcfuSAepqe.dMZxCgYputD5FaoDOp.WqMBFQNh2zPu";
+  const PANEL_PIN = "1234";
+
+  const NOT_CONFIGURED = JSONBIN_BIN_ID === "TU_BIN_ID";
+  let pollingTimer = null;
+
+  if (NOT_CONFIGURED) {
+    document.getElementById('pinScreen').innerHTML =
+      '<div class="box" style="max-width:420px;">' +
+      '<h1>drinks by Shez</h1>' +
+      '<p class="sub">Panel de pedidos</p>' +
+      '<div class="setup-warning">Este panel todavía no está conectado. Abre ' +
+      '<code>admin.html</code> y <code>index.html</code>, y pega tu Bin ID y ' +
+      'Master Key de jsonbin.io en ambos archivos. El LEEME-PANEL-ADMIN.txt trae ' +
+      'el paso a paso.</div></div>';
+  }
+
+  document.getElementById('pinBtn')?.addEventListener('click', intentarEntrar);
+  document.getElementById('pinInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') intentarEntrar();
+  });
+
+  function intentarEntrar(){
+    const val = document.getElementById('pinInput').value;
+    if (val === PANEL_PIN) {
+      document.getElementById('pinScreen').style.display = 'none';
+      document.getElementById('panelScreen').style.display = 'block';
+      cargarPedidos();
+      pollingTimer = setInterval(cargarPedidos, 8000);
+    } else {
+      document.getElementById('pinErr').textContent = 'PIN incorrecto.';
+    }
+  }
+
+  document.getElementById('logoutBtn')?.addEventListener('click', () => {
+    clearInterval(pollingTimer);
+    document.getElementById('pinScreen').style.display = 'flex';
+    document.getElementById('panelScreen').style.display = 'none';
+    document.getElementById('pinInput').value = '';
+  });
+
+  document.getElementById('refreshBtn')?.addEventListener('click', cargarPedidos);
+
+  async function obtenerPedidos(){
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_API_KEY }
+    });
+    const data = await res.json();
+    return Array.isArray(data.record) ? data.record : [];
+  }
+
+  async function guardarPedidos(pedidos){
+    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+      body: JSON.stringify(pedidos)
+    });
+  }
+
+  async function cargarPedidos(){
+    try{
+      const pedidos = await obtenerPedidos();
+      renderPedidos(pedidos);
+    }catch(e){ /* si falla, mantiene lo último que se veía */ }
+  }
+
+  function renderPedidos(pedidos){
+    const grid = document.getElementById('pedidosGrid');
+    const emptyMsg = document.getElementById('emptyMsg');
+
+    if (!pedidos || pedidos.length === 0) {
+      grid.innerHTML = '';
+      emptyMsg.style.display = 'block';
+      return;
+    }
+    emptyMsg.style.display = 'none';
+
+    grid.innerHTML = pedidos.map(p => {
+      const atendido = p.estado === 'atendido';
+      const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-MX', {dateStyle:'short', timeStyle:'short'}) : '—';
+      const itemsHtml = (p.items || []).map(it =>
+        `<li>${it.qty}x ${escapeHtml(it.name)} (${escapeHtml(it.unit)}) — $${(it.qty*it.price).toFixed(2)}</li>`
+      ).join('');
+
+      return `
+        <div class="pedido ${atendido ? 'atendido' : ''}">
+          <div class="pedido-top">
+            <div class="pedido-fecha">${fecha}</div>
+            <div class="pedido-total">$${Number(p.total).toFixed(2)}</div>
+          </div>
+          <span class="pedido-pago">${escapeHtml(p.pago || '')}</span>
+          <ul class="pedido-items">${itemsHtml}</ul>
+          <div class="pedido-footer">
+            <span class="estado ${atendido ? 'atendido' : 'nuevo'}">${atendido ? 'Atendido' : 'Nuevo'}</span>
+            <div style="display:flex; gap:6px;">
+              <button class="btn-mini" onclick="toggleEstado(${p.id})">${atendido ? 'Marcar nuevo' : 'Marcar atendido'}</button>
+              <button class="btn-mini danger" onclick="borrarPedido(${p.id})">Borrar</button>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function toggleEstado(id){
+    const pedidos = await obtenerPedidos();
+    const idx = pedidos.findIndex(p => p.id === id);
+    if (idx === -1) return;
+    pedidos[idx].estado = pedidos[idx].estado === 'atendido' ? 'nuevo' : 'atendido';
+    await guardarPedidos(pedidos);
+    renderPedidos(pedidos);
+  }
+
+  async function borrarPedido(id){
+    if (!confirm('¿Borrar este pedido?')) return;
+    const pedidos = await obtenerPedidos();
+    const nuevos = pedidos.filter(p => p.id !== id);
+    await guardarPedidos(nuevos);
+    renderPedidos(nuevos);
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str || '';
+    return d.innerHTML;
+  }
+</script>
+</body>
+</html>
